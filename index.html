@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avalúo Certero — Ponderación estadística de métodos de valoración</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F4EF;
+    --paper-2:#EFECE3;
+    --ink:#1D2B2A;
+    --ink-soft:#4A5957;
+    --line:#C9C2B2;
+    --teal:#0E5C52;
+    --teal-deep:#0A423B;
+    --gold:#9C7A2E;
+    --clay:#A5432F;
+    --white:#FFFDF9;
+    --font-serif:'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --font-sans:'Inter', -apple-system, Segoe UI, sans-serif;
+    --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#181D1C; --paper-2:#1F2624; --ink:#EDEAE1; --ink-soft:#AEB8B4;
+      --line:#3A423F; --teal:#4FB3A3; --teal-deep:#7ED4C4; --gold:#D4B15E;
+      --clay:#D97D63; --white:#202725;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#181D1C; --paper-2:#1F2624; --ink:#EDEAE1; --ink-soft:#AEB8B4;
+    --line:#3A423F; --teal:#4FB3A3; --teal-deep:#7ED4C4; --gold:#D4B15E;
+    --clay:#D97D63; --white:#202725;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--font-sans); line-height:1.55; -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{ color:inherit; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+  section{ padding:88px 0; }
+  @media (max-width:720px){ section{ padding:56px 0; } }
+
+  .kicker{
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:.04em;
+    color:var(--teal); margin-bottom:14px;
+  }
+  h1,h2,h3{ font-family:var(--font-serif); margin:0; letter-spacing:-.01em; }
+
+  /* NAV */
+  nav.top{
+    position:sticky; top:0; z-index:20;
+    background:color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  nav.top .wrap{
+    display:flex; align-items:center; justify-content:space-between;
+    padding-top:16px; padding-bottom:16px;
+  }
+  .brand{
+    font-family:var(--font-serif); font-weight:700; font-size:19px;
+    display:flex; align-items:center; gap:9px;
+  }
+  .brand .mark{
+    width:9px; height:22px; background:var(--teal); display:inline-block;
+    border-radius:1px;
+  }
+  nav.top a.cta{
+    font-family:var(--font-sans); font-weight:600; font-size:14px;
+    background:var(--teal-deep); color:var(--white);
+    padding:10px 18px; border-radius:3px; text-decoration:none;
+  }
+
+  /* HERO */
+  .hero{
+    padding-top:76px; padding-bottom:70px;
+    display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center;
+  }
+  @media (max-width:860px){ .hero{ grid-template-columns:1fr; } }
+  .hero h1{
+    font-size:clamp(34px,5vw,54px); line-height:1.06; font-weight:700;
+  }
+  .hero .lede{
+    margin-top:22px; font-size:18px; color:var(--ink-soft); max-width:52ch;
+  }
+  .hero-actions{ margin-top:32px; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+  .btn-primary{
+    background:var(--teal-deep); color:var(--white); text-decoration:none;
+    padding:14px 26px; font-weight:600; font-size:15.5px; border-radius:3px;
+    display:inline-block;
+  }
+  .btn-secondary{
+    text-decoration:none; color:var(--ink); font-weight:600; font-size:15px;
+    border-bottom:1.5px solid var(--ink); padding-bottom:2px;
+  }
+  .hero-foot{
+    margin-top:26px; font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft);
+  }
+
+  /* Hero visual: mini histogram */
+  .hero-visual{
+    border:1px solid var(--line); background:var(--white); padding:22px 22px 16px;
+  }
+  .hero-visual .hv-label{
+    font-family:var(--font-mono); font-size:11px; color:var(--ink-soft); margin-bottom:14px;
+  }
+  .hv-stats{
+    display:flex; justify-content:space-between; margin-top:14px;
+    font-family:var(--font-mono); font-size:12px; color:var(--ink-soft);
+    border-top:1px solid var(--line); padding-top:12px;
+  }
+  .hv-stats strong{ display:block; font-family:var(--font-serif); font-size:16px; color:var(--ink); font-weight:600; }
+
+  /* Problem / three cards */
+  .divider-top{ border-top:1px solid var(--ink); }
+  .grid3{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); margin-top:36px;
+  }
+  @media (max-width:760px){ .grid3{ grid-template-columns:1fr; } }
+  .grid3 > div{ background:var(--paper); padding:28px 26px; }
+  .grid3 h3{ font-size:18px; margin-bottom:10px; font-weight:600; }
+  .grid3 p{ color:var(--ink-soft); font-size:14.5px; margin:0; }
+  .grid3 .num{ font-family:var(--font-mono); font-size:12px; color:var(--gold); margin-bottom:10px; display:block; }
+
+  h2.section-title{ font-size:clamp(24px,3.4vw,32px); font-weight:600; max-width:24ch; }
+  p.section-lede{ color:var(--ink-soft); font-size:16px; max-width:56ch; margin-top:14px; }
+
+  /* Steps */
+  .steps{ margin-top:44px; }
+  .step{
+    display:grid; grid-template-columns:64px 1fr; gap:22px;
+    padding:26px 0; border-bottom:1px solid var(--line);
+  }
+  .step:first-child{ border-top:1px solid var(--line); }
+  .step .step-index{
+    font-family:var(--font-serif); font-size:30px; font-weight:600; color:var(--teal);
+  }
+  .step h4{ font-family:var(--font-serif); font-size:19px; font-weight:600; margin:0 0 6px; }
+  .step p{ color:var(--ink-soft); font-size:15px; margin:0; max-width:60ch; }
+
+  /* Output preview */
+  .output-panel{
+    margin-top:40px; border:1px solid var(--line); background:var(--white);
+    padding:30px 28px; display:grid; grid-template-columns:1.2fr 1fr; gap:36px;
+  }
+  @media (max-width:760px){ .output-panel{ grid-template-columns:1fr; } }
+  .stat-list{ display:flex; flex-direction:column; gap:18px; }
+  .stat-list .row{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px dashed var(--line); padding-bottom:12px; }
+  .stat-list .row .k{ font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft); }
+  .stat-list .row .v{ font-family:var(--font-serif); font-size:20px; font-weight:600; }
+  .ci-highlight{ color:var(--teal); }
+
+  /* CTA band */
+  .cta-band{
+    background:var(--teal-deep); color:var(--white); padding:64px 0; margin-top:20px;
+  }
+  .cta-band .wrap{ display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .cta-band h2{ color:var(--white); font-size:clamp(22px,3vw,30px); max-width:22ch; }
+  .cta-band .btn-primary{ background:var(--white); color:var(--teal-deep); }
+
+  footer{
+    padding:32px 0; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    font-size:13px; color:var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <div class="brand"><span class="mark"></span>Avalúo Certero</div>
+    <a class="cta" href="https://claude.ai/artifact/H8zsYNnaCxQqiwGD9gfVbq" target="_blank" rel="noopener">Abrir la herramienta</a>
+  </div>
+</nav>
+
+<div class="wrap hero">
+  <div>
+    <div class="kicker">SIMULACIÓN MONTECARLO PARA AVALÚOS</div>
+    <h1>Tres métodos de valoración. Un rango que podés defender.</h1>
+    <p class="lede">Combiná Análisis de oferta, Inferencial y Contributivo con la ponderación que dicta tu criterio profesional, y obtené un valor central con intervalo de confianza respaldado por miles de simulaciones — no por una hoja de cálculo con un solo número.</p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="https://claude.ai/artifact/H8zsYNnaCxQqiwGD9gfVbq" target="_blank" rel="noopener">Abrir la herramienta →</a>
+      <a class="btn-secondary" href="#como-funciona">Ver cómo funciona</a>
+    </div>
+    <div class="hero-foot">SIN INSTALACIÓN · CORRE EN EL NAVEGADOR · RESULTADOS EN SEGUNDOS</div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="hv-label">DISTRIBUCIÓN SIMULADA — EJEMPLO</div>
+    <svg viewBox="0 0 300 130" width="100%" height="140" xmlns="http://www.w3.org/2000/svg">
+      <g>
+        <!-- histogram bars, roughly bell-shaped -->
+        <rect x="4"   y="112" width="12" height="10" fill="var(--gold)" opacity="0.45"/>
+        <rect x="18"  y="100" width="12" height="22" fill="var(--gold)" opacity="0.45"/>
+        <rect x="32"  y="84"  width="12" height="38" fill="var(--gold)" opacity="0.45"/>
+        <rect x="46"  y="66"  width="12" height="56" fill="var(--teal)" opacity="0.85"/>
+        <rect x="60"  y="46"  width="12" height="76" fill="var(--teal)" opacity="0.85"/>
+        <rect x="74"  y="30"  width="12" height="92" fill="var(--teal)" opacity="0.85"/>
+        <rect x="88"  y="18"  width="12" height="104" fill="var(--teal)" opacity="0.85"/>
+        <rect x="102" y="10"  width="12" height="112" fill="var(--teal-deep)"/>
+        <rect x="116" y="8"   width="12" height="114" fill="var(--teal-deep)"/>
+        <rect x="130" y="14"  width="12" height="108" fill="var(--teal-deep)"/>
+        <rect x="144" y="22"  width="12" height="100" fill="var(--teal)" opacity="0.85"/>
+        <rect x="158" y="36"  width="12" height="86" fill="var(--teal)" opacity="0.85"/>
+        <rect x="172" y="52"  width="12" height="70" fill="var(--teal)" opacity="0.85"/>
+        <rect x="186" y="70"  width="12" height="52" fill="var(--teal)" opacity="0.85"/>
+        <rect x="200" y="88"  width="12" height="34" fill="var(--gold)" opacity="0.45"/>
+        <rect x="214" y="100" width="12" height="22" fill="var(--gold)" opacity="0.45"/>
+        <rect x="228" y="110" width="12" height="12" fill="var(--gold)" opacity="0.45"/>
+        <rect x="242" y="116" width="12" height="6" fill="var(--gold)" opacity="0.3"/>
+        <line x1="0" y1="122" x2="256" y2="122" stroke="var(--line)" stroke-width="1"/>
+      </g>
+    </svg>
+    <div class="hv-stats">
+      <div><strong>1.412.318</strong>media</div>
+      <div><strong>80%</strong>certeza</div>
+      <div><strong>±14,2%</strong>amplitud IC</div>
+    </div>
+  </div>
+</div>
+
+<section class="divider-top">
+  <div class="wrap">
+    <div class="kicker">EL PROBLEMA</div>
+    <h2 class="section-title">Cada método da un número distinto. Ninguno te dice cuánto confiar en él.</h2>
+    <div class="grid3">
+      <div>
+        <span class="num">01</span>
+        <h3>Resultados dispersos</h3>
+        <p>Oferta, inferencial y contributivo arrojan valores que pueden diferir en varios órdenes de magnitud, sin un criterio formal para conciliarlos.</p>
+      </div>
+      <div>
+        <span class="num">02</span>
+        <h3>Ponderación sin respaldo</h3>
+        <p>Asignar pesos "a ojo" (10/10/80, por ejemplo) es una práctica común, pero rara vez se documenta el efecto de esa decisión sobre el resultado final.</p>
+      </div>
+      <div>
+        <span class="num">03</span>
+        <h3>Falta de intervalo</h3>
+        <p>Un valor puntual sin rango de incertidumbre oculta el riesgo real de la estimación frente a clientes, tasadores o entidades financieras.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="como-funciona" class="divider-top">
+  <div class="wrap">
+    <div class="kicker">CÓMO FUNCIONA</div>
+    <h2 class="section-title">De tres enfoques a un solo rango defendible</h2>
+    <p class="section-lede">La herramienta modela cada método como una distribución triangular (mínimo, valor medio, máximo) y corre miles de escenarios aleatorios para construir la distribución del valor final.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-index">01</div>
+        <div>
+          <h4>Cargá los tres enfoques</h4>
+          <p>Ingresá el mínimo, medio y máximo de Análisis de oferta, Inferencial y Contributivo. El Machine Learning queda excluido cuando no aplica.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-index">02</div>
+        <div>
+          <h4>Definí la ponderación</h4>
+          <p>Asigná el peso porcentual de cada método según tu criterio profesional. La herramienta valida que la suma sea exactamente 100%.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-index">03</div>
+        <div>
+          <h4>Simulá miles de escenarios</h4>
+          <p>Cada iteración toma un valor aleatorio de cada método y calcula el promedio ponderado, construyendo así la distribución completa del resultado.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-index">04</div>
+        <div>
+          <h4>Leé el intervalo de confianza</h4>
+          <p>Obtené la media simulada, la mediana, el histograma de frecuencias y el intervalo al nivel de confianza que definas — 80% por defecto.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="divider-top">
+  <div class="wrap">
+    <div class="kicker">QUÉ OBTENÉS</div>
+    <h2 class="section-title">Un resultado que se explica solo</h2>
+    <div class="output-panel">
+      <div class="stat-list">
+        <div class="row"><span class="k">MEDIA SIMULADA</span><span class="v">Valor ponderado central</span></div>
+        <div class="row"><span class="k">MEDIANA Y DESV. ESTÁNDAR</span><span class="v">Forma de la distribución</span></div>
+        <div class="row"><span class="k">INTERVALO DE CONFIANZA</span><span class="v ci-highlight">Rango al 80% (ajustable)</span></div>
+        <div class="row"><span class="k">HISTOGRAMA</span><span class="v">Frecuencias de todos los escenarios</span></div>
+      </div>
+      <p style="color:var(--ink-soft); font-size:15px; margin:0;">
+        Todo el cálculo corre en el navegador: cargás tus datos, ajustás los pesos y el número de simulaciones, y obtenés el resultado al instante — sin instalar software ni depender de una hoja de cálculo con fórmulas ocultas.
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="cta-band">
+  <div class="wrap">
+    <h2>Convertí tres métodos en un rango que podés defender ante cualquier cliente.</h2>
+    <a class="btn-primary" href="https://claude.ai/artifact/H8zsYNnaCxQqiwGD9gfVbq" target="_blank" rel="noopener">Abrir la herramienta →</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <footer>
+    <span>Avalúo Certero — herramienta de apoyo estadístico para avalúos.</span>
+    <span>Los resultados dependen de los datos ingresados y no reemplazan el criterio profesional del tasador.</span>
+  </footer>
+</div>
+
+</body>
+</html>
