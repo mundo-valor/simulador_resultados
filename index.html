@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Valuación Precisa — Ponderación estadística de resultados de métodos de valuación</title>
+<title>Simulación Montecarlo — Ponderación de métodos de valoración</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --paper:#F6F4EF;
@@ -23,306 +25,1021 @@
     --font-sans:'Inter', -apple-system, Segoe UI, sans-serif;
     --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   }
+  :root:not([data-theme="light"]){ }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --paper:#181D1C; --paper-2:#1F2624; --ink:#EDEAE1; --ink-soft:#AEB8B4;
-      --line:#3A423F; --teal:#4FB3A3; --teal-deep:#7ED4C4; --gold:#D4B15E;
-      --clay:#D97D63; --white:#202725;
+      --paper:#181D1C;
+      --paper-2:#1F2624;
+      --ink:#EDEAE1;
+      --ink-soft:#AEB8B4;
+      --line:#3A423F;
+      --teal:#4FB3A3;
+      --teal-deep:#7ED4C4;
+      --gold:#D4B15E;
+      --clay:#D97D63;
+      --white:#202725;
     }
   }
   :root[data-theme="dark"]{
-    --paper:#181D1C; --paper-2:#1F2624; --ink:#EDEAE1; --ink-soft:#AEB8B4;
-    --line:#3A423F; --teal:#4FB3A3; --teal-deep:#7ED4C4; --gold:#D4B15E;
-    --clay:#D97D63; --white:#202725;
+    --paper:#181D1C;
+    --paper-2:#1F2624;
+    --ink:#EDEAE1;
+    --ink-soft:#AEB8B4;
+    --line:#3A423F;
+    --teal:#4FB3A3;
+    --teal-deep:#7ED4C4;
+    --gold:#D4B15E;
+    --clay:#D97D63;
+    --white:#202725;
   }
 
   *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
   body{
-    margin:0; background:var(--paper); color:var(--ink);
-    font-family:var(--font-sans); line-height:1.55; -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
   }
-  a{ color:inherit; }
-  .wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
-  section{ padding:88px 0; }
-  @media (max-width:720px){ section{ padding:56px 0; } }
+  .wrap{
+    max-width:980px;
+    margin:0 auto;
+    padding:56px 24px 96px;
+  }
 
+  header.masthead{
+    border-bottom:2px solid var(--ink);
+    padding-bottom:22px;
+    margin-bottom:40px;
+  }
   .kicker{
-    font-family:var(--font-mono); font-size:12.5px; letter-spacing:.04em;
-    color:var(--teal); margin-bottom:14px;
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    letter-spacing:.04em;
+    color:var(--teal);
+    margin-bottom:10px;
   }
-  h1,h2,h3{ font-family:var(--font-serif); margin:0; letter-spacing:-.01em; }
+  h1{
+    font-family:var(--font-serif);
+    font-weight:700;
+    font-size:clamp(28px,4vw,40px);
+    margin:0 0 10px;
+    line-height:1.12;
+    letter-spacing:-.01em;
+  }
+  .subtitle{
+    font-size:16px;
+    color:var(--ink-soft);
+    max-width:62ch;
+  }
 
-  /* NAV */
-  nav.top{
-    position:sticky; top:0; z-index:20;
-    background:color-mix(in srgb, var(--paper) 88%, transparent);
-    backdrop-filter:blur(6px);
+  section{ margin-bottom:44px; }
+  h2{
+    font-family:var(--font-serif);
+    font-size:22px;
+    font-weight:600;
+    margin:0 0 6px;
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  h2 .num{
+    font-family:var(--font-mono);
+    font-size:14px;
+    color:var(--teal);
+  }
+  .section-note{
+    color:var(--ink-soft);
+    font-size:14.5px;
+    max-width:68ch;
+    margin:0 0 20px;
+  }
+
+  /* Mode tabs: manual vs. archivo */
+  .mode-tabs{
+    display:flex;
+    gap:0;
+    border:1px solid var(--line);
+    width:fit-content;
+    margin-bottom:24px;
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .mode-tab{
+    font-family:var(--font-sans);
+    font-weight:600;
+    font-size:13.5px;
+    padding:10px 18px;
+    background:var(--white);
+    color:var(--ink-soft);
+    border:none;
+    cursor:pointer;
+    border-right:1px solid var(--line);
+  }
+  .mode-tab:last-child{ border-right:none; }
+  .mode-tab.active{
+    background:var(--teal-deep);
+    color:var(--white);
+  }
+
+  /* File upload panel */
+  .file-panel{
+    border:1px solid var(--line);
+    background:var(--paper-2);
+    padding:22px;
+    margin-bottom:28px;
+  }
+  .file-panel .fp-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:14px;
+    margin-bottom:16px;
+  }
+  .file-panel .fp-title{
+    font-family:var(--font-serif);
+    font-weight:600;
+    font-size:16px;
+    margin:0 0 4px;
+  }
+  .file-panel .fp-desc{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    max-width:56ch;
+    margin:0;
+  }
+  .template-links{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .template-links a{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    text-decoration:none;
+    color:var(--teal-deep);
+    border:1px solid var(--line);
+    background:var(--white);
+    padding:7px 12px;
+    border-radius:3px;
+    white-space:nowrap;
+  }
+  .template-links a:hover{ border-color:var(--teal); }
+
+  .dropzone{
+    border:1.5px dashed var(--line);
+    background:var(--white);
+    padding:28px 20px;
+    text-align:center;
+    cursor:pointer;
+    border-radius:3px;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone.drag{
+    border-color:var(--teal);
+    background:var(--paper);
+  }
+  .dropzone .dz-main{
+    font-weight:600;
+    font-size:14.5px;
+    margin-bottom:4px;
+  }
+  .dropzone .dz-sub{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  #fileInput{ display:none; }
+  #fileStatus{
+    margin-top:12px;
+    font-size:13.5px;
+    font-family:var(--font-mono);
+    min-height:18px;
+  }
+  #fileStatus.ok{ color:var(--teal); }
+  #fileStatus.bad{ color:var(--clay); }
+
+  #manualHint{
+    color:var(--ink-soft);
+    font-size:13px;
+    margin-bottom:14px;
+  }
+
+  /* Methods table/input grid */
+  .methods{
+    border-top:1px solid var(--line);
+  }
+  .method-row{
+    display:grid;
+    grid-template-columns: 1.3fr repeat(3, 1fr) .9fr;
+    gap:14px;
+    align-items:center;
+    padding:16px 0;
     border-bottom:1px solid var(--line);
   }
-  nav.top .wrap{
-    display:flex; align-items:center; justify-content:space-between;
-    padding-top:16px; padding-bottom:16px;
+  .method-row.head{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--ink-soft);
+    padding-bottom:10px;
   }
-  .brand{
-    font-family:var(--font-serif); font-weight:700; font-size:19px;
-    display:flex; align-items:center; gap:9px;
+  .method-name{
+    font-weight:600;
+    font-size:15px;
   }
-  .brand .mark{
-    width:9px; height:22px; background:var(--teal); display:inline-block;
-    border-radius:1px;
+  .method-name .tag{
+    display:block;
+    font-family:var(--font-mono);
+    font-weight:400;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:3px;
   }
-  nav.top a.cta{
-    font-family:var(--font-sans); font-weight:600; font-size:14px;
-    background:var(--teal-deep); color:var(--white);
-    padding:10px 18px; border-radius:3px; text-decoration:none;
+  input.num{
+    width:100%;
+    border:1px solid var(--line);
+    background:var(--white);
+    color:var(--ink);
+    padding:9px 10px;
+    border-radius:3px;
+    font-family:var(--font-mono);
+    font-size:14px;
+  }
+  input.num:focus{
+    outline:none;
+    border-color:var(--teal);
+  }
+  .weight-cell{
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .weight-cell input{ text-align:right; }
+  .weight-cell span{ color:var(--ink-soft); font-size:13px; }
+
+  .weight-sum-row{
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    gap:10px;
+    padding:14px 0 4px;
+    font-family:var(--font-mono);
+    font-size:14px;
+  }
+  .weight-sum-row .label{ color:var(--ink-soft); }
+  .weight-sum-row .value{ font-weight:600; font-size:16px; }
+  .weight-sum-row .value.ok{ color:var(--teal); }
+  .weight-sum-row .value.bad{ color:var(--clay); }
+
+  /* Controls */
+  .controls-bar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    gap:24px;
+    margin-top:22px;
+    padding-top:22px;
+    border-top:1px dashed var(--line);
+  }
+  .control{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .control label{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--ink-soft);
+  }
+  .control input{
+    width:140px;
+  }
+  button#runBtn{
+    background:var(--teal-deep);
+    color:var(--white);
+    border:none;
+    padding:13px 26px;
+    font-family:var(--font-sans);
+    font-weight:600;
+    font-size:15px;
+    border-radius:3px;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  button#runBtn:hover{ background:var(--teal); }
+  button#runBtn:active{ transform:translateY(1px); }
+  #errMsg{
+    color:var(--clay);
+    font-size:13.5px;
+    font-family:var(--font-mono);
+    margin-top:10px;
+    min-height:16px;
   }
 
-  /* HERO */
-  .hero{
-    padding-top:76px; padding-bottom:70px;
-    display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center;
+  /* Results */
+  #results{ display:none; }
+  .stat-strip{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    border-top:1px solid var(--ink);
+    border-bottom:1px solid var(--line);
+    margin-bottom:28px;
   }
-  @media (max-width:860px){ .hero{ grid-template-columns:1fr; } }
-  .hero h1{
-    font-size:clamp(34px,5vw,54px); line-height:1.06; font-weight:700;
+  .stat{
+    padding:18px 16px;
+    border-right:1px solid var(--line);
   }
-  .hero .lede{
-    margin-top:22px; font-size:18px; color:var(--ink-soft); max-width:52ch;
+  .stat:last-child{ border-right:none; }
+  .stat .stat-label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
   }
-  .hero-actions{ margin-top:32px; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
-  .btn-primary{
-    background:var(--teal-deep); color:var(--white); text-decoration:none;
-    padding:14px 26px; font-weight:600; font-size:15.5px; border-radius:3px;
-    display:inline-block;
+  .stat .stat-value{
+    font-family:var(--font-serif);
+    font-size:23px;
+    font-weight:600;
+    letter-spacing:-.01em;
   }
-  .btn-secondary{
-    text-decoration:none; color:var(--ink); font-weight:600; font-size:15px;
-    border-bottom:1.5px solid var(--ink); padding-bottom:2px;
-  }
-  .hero-foot{
-    margin-top:26px; font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft);
-  }
+  .stat.highlight .stat-value{ color:var(--teal); }
 
-  /* Hero visual: mini histogram */
-  .hero-visual{
-    border:1px solid var(--line); background:var(--white); padding:22px 22px 16px;
+  .ci-banner{
+    background:var(--paper-2);
+    border-left:3px solid var(--teal);
+    padding:18px 22px;
+    margin-bottom:32px;
+    font-size:15px;
   }
-  .hero-visual .hv-label{
-    font-family:var(--font-mono); font-size:11px; color:var(--ink-soft); margin-bottom:14px;
-  }
-  .hv-stats{
-    display:flex; justify-content:space-between; margin-top:14px;
-    font-family:var(--font-mono); font-size:12px; color:var(--ink-soft);
-    border-top:1px solid var(--line); padding-top:12px;
-  }
-  .hv-stats strong{ display:block; font-family:var(--font-serif); font-size:16px; color:var(--ink); font-weight:600; }
+  .ci-banner strong{ font-family:var(--font-serif); font-size:17px; }
 
-  /* Problem / three cards */
-  .divider-top{ border-top:1px solid var(--ink); }
-  .grid3{
-    display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
-    background:var(--line); border:1px solid var(--line); margin-top:36px;
+  .chart-panel{
+    border:1px solid var(--line);
+    background:var(--white);
+    padding:24px 20px 12px;
   }
-  @media (max-width:760px){ .grid3{ grid-template-columns:1fr; } }
-  .grid3 > div{ background:var(--paper); padding:28px 26px; }
-  .grid3 h3{ font-size:18px; margin-bottom:10px; font-weight:600; }
-  .grid3 p{ color:var(--ink-soft); font-size:14.5px; margin:0; }
-  .grid3 .num{ font-family:var(--font-mono); font-size:12px; color:var(--gold); margin-bottom:10px; display:block; }
+  .chart-panel h3{
+    font-family:var(--font-serif);
+    font-size:16px;
+    font-weight:600;
+    margin:0 0 4px;
+  }
+  .chart-panel .chart-sub{
+    color:var(--ink-soft);
+    font-size:13px;
+    margin-bottom:14px;
+  }
+  #histCanvasWrap{ position:relative; height:360px; }
 
-  h2.section-title{ font-size:clamp(24px,3.4vw,32px); font-weight:600; max-width:24ch; }
-  p.section-lede{ color:var(--ink-soft); font-size:16px; max-width:56ch; margin-top:14px; }
-
-  /* Steps */
-  .steps{ margin-top:44px; }
-  .step{
-    display:grid; grid-template-columns:64px 1fr; gap:22px;
-    padding:26px 0; border-bottom:1px solid var(--line);
+  .detail-table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:28px;
+    font-size:14px;
   }
-  .step:first-child{ border-top:1px solid var(--line); }
-  .step .step-index{
-    font-family:var(--font-serif); font-size:30px; font-weight:600; color:var(--teal);
+  .detail-table caption{
+    text-align:left;
+    font-family:var(--font-serif);
+    font-size:16px;
+    font-weight:600;
+    margin-bottom:10px;
   }
-  .step h4{ font-family:var(--font-serif); font-size:19px; font-weight:600; margin:0 0 6px; }
-  .step p{ color:var(--ink-soft); font-size:15px; margin:0; max-width:60ch; }
-
-  /* Output preview */
-  .output-panel{
-    margin-top:40px; border:1px solid var(--line); background:var(--white);
-    padding:30px 28px; display:grid; grid-template-columns:1.2fr 1fr; gap:36px;
+  .detail-table th, .detail-table td{
+    text-align:left;
+    padding:9px 12px;
+    border-bottom:1px solid var(--line);
   }
-  @media (max-width:760px){ .output-panel{ grid-template-columns:1fr; } }
-  .stat-list{ display:flex; flex-direction:column; gap:18px; }
-  .stat-list .row{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px dashed var(--line); padding-bottom:12px; }
-  .stat-list .row .k{ font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft); }
-  .stat-list .row .v{ font-family:var(--font-serif); font-size:20px; font-weight:600; }
-  .ci-highlight{ color:var(--teal); }
-
-  /* CTA band */
-  .cta-band{
-    background:var(--teal-deep); color:var(--white); padding:64px 0; margin-top:20px;
+  .detail-table th{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--ink-soft);
+    font-weight:500;
   }
-  .cta-band .wrap{ display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; }
-  .cta-band h2{ color:var(--white); font-size:clamp(22px,3vw,30px); max-width:22ch; }
-  .cta-band .btn-primary{ background:var(--white); color:var(--teal-deep); }
+  .detail-table td.num, .detail-table th.num{ text-align:right; font-family:var(--font-mono); }
 
   footer{
-    padding:32px 0; border-top:1px solid var(--line);
-    display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;
-    font-size:13px; color:var(--ink-soft);
+    margin-top:56px;
+    padding-top:18px;
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    color:var(--ink-soft);
   }
+
+  @media (max-width: 720px){
+    .method-row{ grid-template-columns:1fr; row-gap:8px; padding:18px 0; }
+    .method-row.head{ display:none; }
+    .method-row > div::before{
+      content: attr(data-label);
+      display:block;
+      font-family:var(--font-mono);
+      font-size:10.5px;
+      color:var(--ink-soft);
+      margin-bottom:3px;
+    }
+    .stat-strip{ grid-template-columns:1fr 1fr; }
+    .stat:nth-child(2){ border-right:none; }
+    .stat:nth-child(1), .stat:nth-child(2){ border-bottom:1px solid var(--line); }
+    .controls-bar{ flex-direction:column; align-items:stretch; }
+    .control input{ width:100%; }
+  }
+
+  ::-webkit-scrollbar{ height:8px; width:8px; }
 </style>
 </head>
 <body>
-
-<nav class="top">
-  <div class="wrap">
-    <div class="brand"><span class="mark"></span>Avalúo Certero</div>
-    <a class="cta" href="https://claude.ai/artifact/H8zsYNnaCxQqiwGD9gfVbq" target="_blank" rel="noopener">Abrir la herramienta</a>
-  </div>
-</nav>
-
-<div class="wrap hero">
-  <div>
-    <div class="kicker">SIMULACIÓN MONTECARLO PARA VALUACIONES</div>
-    <h1>Tres métodos de valuación. Un rango que se puede defender.</h1>
-    <p class="lede">Combiná Análisis de oferta (estadística descriptiva e inferencial) y Método Contributivo con la ponderación que dicta tu criterio profesional, y obtené un valor central con intervalo de confianza respaldado por miles de simulaciones — no por una hoja de cálculo con un solo número.</p>
-    <div class="hero-actions">
-      <a class="btn-primary" href="https://claude.ai/artifact/H8zsYNnaCxQqiwGD9gfVbq" target="_blank" rel="noopener">Abrir la herramienta →</a>
-      <a class="btn-secondary" href="#como-funciona">Ver cómo funciona</a>
-    </div>
-    <div class="hero-foot">SIN INSTALACIÓN · CORRE EN EL NAVEGADOR · RESULTADOS EN SEGUNDOS</div>
-  </div>
-
-  <div class="hero-visual">
-    <div class="hv-label">DISTRIBUCIÓN SIMULADA — EJEMPLO</div>
-    <svg viewBox="0 0 300 130" width="100%" height="140" xmlns="http://www.w3.org/2000/svg">
-      <g>
-        <!-- histogram bars, roughly bell-shaped -->
-        <rect x="4"   y="112" width="12" height="10" fill="var(--gold)" opacity="0.45"/>
-        <rect x="18"  y="100" width="12" height="22" fill="var(--gold)" opacity="0.45"/>
-        <rect x="32"  y="84"  width="12" height="38" fill="var(--gold)" opacity="0.45"/>
-        <rect x="46"  y="66"  width="12" height="56" fill="var(--teal)" opacity="0.85"/>
-        <rect x="60"  y="46"  width="12" height="76" fill="var(--teal)" opacity="0.85"/>
-        <rect x="74"  y="30"  width="12" height="92" fill="var(--teal)" opacity="0.85"/>
-        <rect x="88"  y="18"  width="12" height="104" fill="var(--teal)" opacity="0.85"/>
-        <rect x="102" y="10"  width="12" height="112" fill="var(--teal-deep)"/>
-        <rect x="116" y="8"   width="12" height="114" fill="var(--teal-deep)"/>
-        <rect x="130" y="14"  width="12" height="108" fill="var(--teal-deep)"/>
-        <rect x="144" y="22"  width="12" height="100" fill="var(--teal)" opacity="0.85"/>
-        <rect x="158" y="36"  width="12" height="86" fill="var(--teal)" opacity="0.85"/>
-        <rect x="172" y="52"  width="12" height="70" fill="var(--teal)" opacity="0.85"/>
-        <rect x="186" y="70"  width="12" height="52" fill="var(--teal)" opacity="0.85"/>
-        <rect x="200" y="88"  width="12" height="34" fill="var(--gold)" opacity="0.45"/>
-        <rect x="214" y="100" width="12" height="22" fill="var(--gold)" opacity="0.45"/>
-        <rect x="228" y="110" width="12" height="12" fill="var(--gold)" opacity="0.45"/>
-        <rect x="242" y="116" width="12" height="6" fill="var(--gold)" opacity="0.3"/>
-        <line x1="0" y1="122" x2="256" y2="122" stroke="var(--line)" stroke-width="1"/>
-      </g>
-    </svg>
-    <div class="hv-stats">
-      <div><strong>1.412.318</strong>media</div>
-      <div><strong>80%</strong>certeza</div>
-      <div><strong>±14,2%</strong>amplitud IC</div>
-    </div>
-  </div>
-</div>
-
-<section class="divider-top">
-  <div class="wrap">
-    <div class="kicker">EL PROBLEMA</div>
-    <h2 class="section-title">Cada método da un número distinto. Ninguno te dice cuánto confiar en él.</h2>
-    <div class="grid3">
-      <div>
-        <span class="num">01</span>
-        <h3>Resultados dispersos</h3>
-        <p>Oferta, inferencial y contributivo arrojan valores que pueden diferir en varios órdenes de magnitud, sin un criterio formal para conciliarlos.</p>
-      </div>
-      <div>
-        <span class="num">02</span>
-        <h3>Ponderación sin respaldo</h3>
-        <p>Asignar pesos "a ojo" (10/10/80, por ejemplo) es una práctica común, pero rara vez se documenta el efecto de esa decisión sobre el resultado final.</p>
-      </div>
-      <div>
-        <span class="num">03</span>
-        <h3>Falta de intervalo</h3>
-        <p>Un valor puntual sin rango de incertidumbre oculta el riesgo real de la estimación frente a clientes, tasadores o entidades financieras.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="como-funciona" class="divider-top">
-  <div class="wrap">
-    <div class="kicker">CÓMO FUNCIONA</div>
-    <h2 class="section-title">De tres enfoques a un solo rango defendible</h2>
-    <p class="section-lede">La herramienta modela cada método como una distribución triangular (mínimo, valor medio, máximo) y corre miles de escenarios aleatorios para construir la distribución del valor final.</p>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-index">01</div>
-        <div>
-          <h4>Cargá los tres enfoques</h4>
-          <p>Ingresá el mínimo, medio y máximo de Análisis de oferta, Inferencial y Contributivo. El Machine Learning queda excluido cuando no aplica.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-index">02</div>
-        <div>
-          <h4>Definí la ponderación</h4>
-          <p>Asigná el peso porcentual de cada método según tu criterio profesional. La herramienta valida que la suma sea exactamente 100%.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-index">03</div>
-        <div>
-          <h4>Simulá miles de escenarios</h4>
-          <p>Cada iteración toma un valor aleatorio de cada método y calcula el promedio ponderado, construyendo así la distribución completa del resultado.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-index">04</div>
-        <div>
-          <h4>Leé el intervalo de confianza</h4>
-          <p>Obtené la media simulada, la mediana, el histograma de frecuencias y el intervalo al nivel de confianza que definas — 80% por defecto.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="divider-top">
-  <div class="wrap">
-    <div class="kicker">QUÉ OBTENÉS</div>
-    <h2 class="section-title">Un resultado que se explica solo</h2>
-    <div class="output-panel">
-      <div class="stat-list">
-        <div class="row"><span class="k">MEDIA SIMULADA</span><span class="v">Valor ponderado central</span></div>
-        <div class="row"><span class="k">MEDIANA Y DESV. ESTÁNDAR</span><span class="v">Forma de la distribución</span></div>
-        <div class="row"><span class="k">INTERVALO DE CONFIANZA</span><span class="v ci-highlight">Rango al 80% (ajustable)</span></div>
-        <div class="row"><span class="k">HISTOGRAMA</span><span class="v">Frecuencias de todos los escenarios</span></div>
-      </div>
-      <p style="color:var(--ink-soft); font-size:15px; margin:0;">
-        Todo el cálculo corre en el navegador: cargás tus datos, ajustás los pesos y el número de simulaciones, y obtenés el resultado al instante — sin instalar software ni depender de una hoja de cálculo con fórmulas ocultas.
-      </p>
-    </div>
-  </div>
-</section>
-
-<div class="cta-band">
-  <div class="wrap">
-    <h2>Convertí tres métodos en un rango que podés defender ante cualquier cliente.</h2>
-    <a class="btn-primary" href="https://claude.ai/artifact/H8zsYNnaCxQqiwGD9gfVbq" target="_blank" rel="noopener">Abrir la herramienta →</a>
-  </div>
-</div>
-
 <div class="wrap">
+
+  <header class="masthead">
+    <div class="kicker">SIMULACIÓN MONTECARLO · PONDERACIÓN DE MÉTODOS DE VALORACIÓN</div>
+    <h1>Estimación del valor ponderado mediante Montecarlo</h1>
+    <p class="subtitle">Combina los resultados de los enfoques Análisis de oferta, Inferencial y Contributivo (Bs/m²), aplicando una ponderación porcentual que suma 100&nbsp;%, y propaga la incertidumbre de cada método a través de una distribución triangular (mínimo, valor medio, máximo).</p>
+  </header>
+
+  <section id="inputs-section">
+    <h2><span class="num">01</span> Datos base y ponderación</h2>
+    <p class="section-note">Los valores mínimo / medio / máximo provienen de la Tabla 86. El método Machine Learning se excluye (NA). Ajustá los pesos porcentuales — deben sumar 100&nbsp;%.</p>
+
+    <div class="mode-tabs" role="tablist">
+      <button class="mode-tab active" id="tabManual" type="button">Carga manual</button>
+      <button class="mode-tab" id="tabFile" type="button">Cargar desde archivo (.xlsx / .csv)</button>
+    </div>
+
+    <div class="file-panel" id="filePanel" style="display:none;">
+      <div class="fp-head">
+        <div>
+          <p class="fp-title">Importar datos desde un archivo</p>
+          <p class="fp-desc">El archivo debe tener columnas: <strong>Método, Minimo, Medio, Maximo, Peso</strong>. Se reconoce el método por nombre (oferta, inferencial, contributivo); si no coincide, se asigna por orden de fila.</p>
+        </div>
+        <div class="template-links">
+          <a href="#" id="downloadTemplateCsv">↓ Plantilla .csv</a>
+          <a href="#" id="downloadTemplateXlsx">↓ Plantilla .xlsx</a>
+        </div>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <div class="dz-main">Arrastrá tu archivo acá, o hacé clic para elegirlo</div>
+        <div class="dz-sub">FORMATOS ACEPTADOS: .XLSX · .XLS · .CSV</div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+      </div>
+      <div id="fileStatus"></div>
+    </div>
+
+    <p id="manualHint" style="display:block;">Editá directamente los valores de cada método:</p>
+
+    <div class="methods" id="methodsGrid">
+      <div class="method-row head">
+        <div>Método</div>
+        <div>Mínimo (Bs/m²)</div>
+        <div>Medio (Bs/m²)</div>
+        <div>Máximo (Bs/m²)</div>
+        <div>Peso (%)</div>
+      </div>
+      <!-- rows injected by JS -->
+    </div>
+
+    <div class="weight-sum-row">
+      <span class="label">Suma de pesos</span>
+      <span class="value" id="weightSumValue">100.0%</span>
+    </div>
+
+    <div class="controls-bar">
+      <div class="control">
+        <label for="nSims">N.º de simulaciones</label>
+        <input class="num" type="number" id="nSims" value="20000" min="1000" max="200000" step="1000">
+      </div>
+      <div class="control">
+        <label for="ciLevel">Nivel de confianza</label>
+        <input class="num" type="number" id="ciLevel" value="80" min="50" max="99" step="1">
+      </div>
+      <button id="runBtn">Ejecutar simulación</button>
+    </div>
+    <div id="errMsg"></div>
+  </section>
+
+  <section id="results">
+    <h2><span class="num">02</span> Resultados de la simulación</h2>
+    <p class="section-note">Distribución empírica del valor ponderado tras <span id="nSimsEcho">—</span> iteraciones.</p>
+
+    <div class="stat-strip">
+      <div class="stat highlight">
+        <div class="stat-label">MEDIA SIMULADA</div>
+        <div class="stat-value" id="statMean">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">MEDIANA</div>
+        <div class="stat-value" id="statMedian">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">DESV. ESTÁNDAR</div>
+        <div class="stat-value" id="statStd">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">COEF. DE VARIACIÓN</div>
+        <div class="stat-value" id="statCV">—</div>
+      </div>
+    </div>
+
+    <div class="ci-banner">
+      Con <strong id="ciLevelEcho">80%</strong> de certeza, el valor ponderado del inmueble se ubica entre
+      <strong id="ciLow">—</strong> y <strong id="ciHigh">—</strong> Bs/m².
+    </div>
+
+    <div class="chart-panel">
+      <h3>Histograma de frecuencias</h3>
+      <div class="chart-sub">Valor ponderado simulado (Bs/m²) — la banda sombreada marca el intervalo de confianza</div>
+      <div id="histCanvasWrap"><canvas id="histChart"></canvas></div>
+    </div>
+
+    <table class="detail-table">
+      <caption>Percentiles de la distribución simulada</caption>
+      <thead>
+        <tr><th>Percentil</th><th class="num">Valor (Bs/m²)</th><th>Percentil</th><th class="num">Valor (Bs/m²)</th></tr>
+      </thead>
+      <tbody id="percentileBody"></tbody>
+    </table>
+  </section>
+
   <footer>
-    <span>Avalúo Certero — herramienta de apoyo estadístico para avalúos.</span>
-    <span>Los resultados dependen de los datos ingresados y no reemplazan el criterio profesional del tasador.</span>
+    Modelo: mezcla ponderada de distribuciones triangulares (mín., medio, máx.) por método, combinadas mediante Y&nbsp;=&nbsp;Σ&nbsp;(peso<sub>i</sub>&nbsp;×&nbsp;X<sub>i</sub>) en cada iteración de Montecarlo. El intervalo de confianza se calcula por el método de percentiles sobre la distribución empírica resultante.
   </footer>
+
 </div>
 
+<script>
+const METHODS = [
+  { id:'oferta', name:'Análisis de oferta', tag:'Comparativo de mercado', min:167247.19, med:188278.41, max:209309.33, weight:10 },
+  { id:'inferencial', name:'Inferencial', tag:'Estadístico', min:196925.54, med:249454.18, max:315912.97, weight:10 },
+  { id:'contributivo', name:'Contributivo', tag:'Costo de reposición', min:1344062.88, med:1479845.22, max:1612316.33, weight:80 },
+];
+
+const fmt = (v) => v.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmt0 = (v) => Math.round(v).toLocaleString('es-VE');
+
+function renderMethodRows(){
+  const grid = document.getElementById('methodsGrid');
+  METHODS.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'method-row';
+    row.innerHTML = `
+      <div class="method-name" data-label="Método">${m.name}<span class="tag">${m.tag}</span></div>
+      <div data-label="Mínimo"><input class="num" type="number" step="0.01" id="${m.id}_min" value="${m.min}"></div>
+      <div data-label="Medio"><input class="num" type="number" step="0.01" id="${m.id}_med" value="${m.med}"></div>
+      <div data-label="Máximo"><input class="num" type="number" step="0.01" id="${m.id}_max" value="${m.max}"></div>
+      <div class="weight-cell" data-label="Peso">
+        <input class="num" type="number" step="1" min="0" max="100" id="${m.id}_w" value="${m.weight}">
+        <span>%</span>
+      </div>
+    `;
+    grid.appendChild(row);
+  });
+}
+renderMethodRows();
+
+function refreshWeightSum(){
+  const sum = METHODS.reduce((acc,m) => acc + parseFloat(document.getElementById(m.id+'_w').value || 0), 0);
+  const el = document.getElementById('weightSumValue');
+  el.textContent = sum.toFixed(1) + '%';
+  el.className = 'value ' + (Math.abs(sum - 100) < 0.05 ? 'ok' : 'bad');
+  return sum;
+}
+METHODS.forEach(m => document.getElementById(m.id+'_w').addEventListener('input', refreshWeightSum));
+refreshWeightSum();
+
+// Triangular distribution sampler: min, mode (most likely = "medio"), max
+function sampleTriangular(min, mode, max, rnd){
+  if (max <= min) return min; // degenerate guard
+  const mo = Math.min(Math.max(mode, min), max);
+  const Fc = (mo - min) / (max - min);
+  if (rnd < Fc){
+    return min + Math.sqrt(rnd * (max - min) * (mo - min));
+  } else {
+    return max - Math.sqrt((1 - rnd) * (max - min) * (max - mo));
+  }
+}
+
+function quantile(sortedArr, q){
+  const pos = (sortedArr.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (sortedArr[base+1] !== undefined){
+    return sortedArr[base] + rest * (sortedArr[base+1] - sortedArr[base]);
+  }
+  return sortedArr[base];
+}
+
+let histChartInstance = null;
+
+function runSimulation(){
+  const errEl = document.getElementById('errMsg');
+  errEl.textContent = '';
+
+  const sum = refreshWeightSum();
+  if (Math.abs(sum - 100) > 0.05){
+    errEl.textContent = `Los pesos deben sumar 100% (suma actual: ${sum.toFixed(1)}%). Ajustá los valores antes de ejecutar.`;
+    return;
+  }
+
+  const n = Math.min(Math.max(parseInt(document.getElementById('nSims').value) || 20000, 1000), 200000);
+  const ciLevel = Math.min(Math.max(parseFloat(document.getElementById('ciLevel').value) || 80, 50), 99);
+
+  const params = METHODS.map(m => ({
+    min: parseFloat(document.getElementById(m.id+'_min').value),
+    med: parseFloat(document.getElementById(m.id+'_med').value),
+    max: parseFloat(document.getElementById(m.id+'_max').value),
+    w: parseFloat(document.getElementById(m.id+'_w').value) / 100,
+    name: m.name
+  }));
+
+  for (const p of params){
+    if (!(p.min <= p.med && p.med <= p.max)){
+      errEl.textContent = `Revisá los valores de "${p.name}": debe cumplirse mínimo ≤ medio ≤ máximo.`;
+      return;
+    }
+  }
+
+  const results = new Float64Array(n);
+  for (let i=0; i<n; i++){
+    let y = 0;
+    for (const p of params){
+      y += p.w * sampleTriangular(p.min, p.med, p.max, Math.random());
+    }
+    results[i] = y;
+  }
+
+  const sorted = Array.from(results).sort((a,b) => a-b);
+  const mean = sorted.reduce((a,b)=>a+b,0) / n;
+  const variance = sorted.reduce((a,b)=>a+(b-mean)*(b-mean),0) / (n-1);
+  const std = Math.sqrt(variance);
+  const median = quantile(sorted, 0.5);
+  const alpha = (1 - ciLevel/100) / 2;
+  const low = quantile(sorted, alpha);
+  const high = quantile(sorted, 1 - alpha);
+  const cv = (std / mean) * 100;
+
+  document.getElementById('nSimsEcho').textContent = n.toLocaleString('es-VE');
+  document.getElementById('statMean').textContent = fmt0(mean);
+  document.getElementById('statMedian').textContent = fmt0(median);
+  document.getElementById('statStd').textContent = fmt0(std);
+  document.getElementById('statCV').textContent = cv.toFixed(1) + '%';
+  document.getElementById('ciLevelEcho').textContent = ciLevel + '%';
+  document.getElementById('ciLow').textContent = fmt0(low) + ' Bs/m²';
+  document.getElementById('ciHigh').textContent = fmt0(high) + ' Bs/m²';
+
+  // Percentile table
+  const pctBody = document.getElementById('percentileBody');
+  const pcts = [0.05,0.10,0.25,0.50,0.75,0.90,0.95];
+  pctBody.innerHTML = '';
+  for (let i=0; i<pcts.length; i+=2){
+    const p1 = pcts[i], p2 = pcts[i+1];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>P${Math.round(p1*100)}</td><td class="num">${fmt0(quantile(sorted,p1))}</td>
+      <td>${p2!==undefined ? 'P'+Math.round(p2*100) : ''}</td>
+      <td class="num">${p2!==undefined ? fmt0(quantile(sorted,p2)) : ''}</td>
+    `;
+    pctBody.appendChild(tr);
+  }
+
+  drawHistogram(sorted, low, high);
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function drawHistogram(sorted, low, high){
+  const nBins = 32;
+  const min = sorted[0], max = sorted[sorted.length-1];
+  const binWidth = (max - min) / nBins || 1;
+  const counts = new Array(nBins).fill(0);
+  const labels = [];
+  for (let i=0;i<nBins;i++){
+    const binStart = min + i*binWidth;
+    labels.push(fmt0(binStart));
+  }
+  for (const v of sorted){
+    let idx = Math.floor((v - min) / binWidth);
+    if (idx >= nBins) idx = nBins - 1;
+    if (idx < 0) idx = 0;
+    counts[idx]++;
+  }
+
+  const colors = counts.map((_, i) => {
+    const binCenter = min + (i+0.5)*binWidth;
+    return (binCenter >= low && binCenter <= high) ? 'rgba(14,92,82,0.75)' : 'rgba(156,122,46,0.35)';
+  });
+
+  const ctx = document.getElementById('histChart').getContext('2d');
+  if (histChartInstance) histChartInstance.destroy();
+
+  const rootStyles = getComputedStyle(document.documentElement);
+  const inkColor = rootStyles.getPropertyValue('--ink').trim() || '#1D2B2A';
+  const lineColor = rootStyles.getPropertyValue('--line').trim() || '#C9C2B2';
+
+  histChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Frecuencia',
+        data: counts,
+        backgroundColor: colors,
+        borderWidth: 0,
+        categoryPercentage: 1.0,
+        barPercentage: 1.0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 400 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => 'Desde Bs/m² ' + items[0].label,
+            label: (item) => item.formattedValue + ' simulaciones'
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: inkColor, maxRotation: 60, minRotation: 60, autoSkip: true, maxTicksLimit: 14, font:{family:"'IBM Plex Mono', monospace", size:10} },
+          grid: { display: false },
+          title: { display:true, text:'Valor ponderado (Bs/m²)', color: inkColor, font:{family:"'Inter', sans-serif", size:12} }
+        },
+        y: {
+          ticks: { color: inkColor, font:{family:"'IBM Plex Mono', monospace", size:10} },
+          grid: { color: lineColor },
+          title: { display:true, text:'N.º de simulaciones', color: inkColor, font:{family:"'Inter', sans-serif", size:12} }
+        }
+      }
+    }
+  });
+}
+
+document.getElementById('runBtn').addEventListener('click', runSimulation);
+
+/* ---------- Modo manual vs. archivo ---------- */
+const tabManual = document.getElementById('tabManual');
+const tabFile = document.getElementById('tabFile');
+const filePanel = document.getElementById('filePanel');
+const manualHint = document.getElementById('manualHint');
+
+tabManual.addEventListener('click', () => {
+  tabManual.classList.add('active');
+  tabFile.classList.remove('active');
+  filePanel.style.display = 'none';
+  manualHint.style.display = 'block';
+});
+tabFile.addEventListener('click', () => {
+  tabFile.classList.add('active');
+  tabManual.classList.remove('active');
+  filePanel.style.display = 'block';
+  manualHint.style.display = 'none';
+});
+
+/* ---------- Plantillas descargables ---------- */
+function buildTemplateAOA(){
+  return [
+    ['Metodo', 'Minimo', 'Medio', 'Maximo', 'Peso'],
+    ['Analisis de oferta', 167247.19, 188278.41, 209309.33, 10],
+    ['Inferencial', 196925.54, 249454.18, 315912.97, 10],
+    ['Contributivo', 1344062.88, 1479845.22, 1612316.33, 80],
+  ];
+}
+
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+document.getElementById('downloadTemplateCsv').addEventListener('click', (e) => {
+  e.preventDefault();
+  const rows = buildTemplateAOA();
+  const csv = rows.map(r => r.join(',')).join('\r\n');
+  downloadBlob(csv, 'plantilla_valoracion.csv', 'text/csv;charset=utf-8;');
+});
+
+document.getElementById('downloadTemplateXlsx').addEventListener('click', (e) => {
+  e.preventDefault();
+  const ws = XLSX.utils.aoa_to_sheet(buildTemplateAOA());
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  downloadBlob(out, 'plantilla_valoracion.xlsx', 'application/octet-stream');
+});
+
+/* ---------- Carga y parseo de archivo (.xlsx / .xls / .csv) ---------- */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const fileStatus = document.getElementById('fileStatus');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function normalize(str){
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quitar acentos
+    .trim();
+}
+
+/* Convierte números en formato latino ("167.247,19") o anglosajón ("167,247.19")
+   a un float de JS. Si la celda ya viene como número (típico de .xlsx), se devuelve tal cual. */
+function parseLocaleNumber(raw){
+  if (typeof raw === 'number') return raw;
+  if (raw === null || raw === undefined) return NaN;
+  let s = String(raw).trim();
+  if (s === '') return NaN;
+  s = s.replace(/[^0-9.,\-]/g, ''); // quitar símbolos de moneda, espacios, etc.
+  if (s === '' || s === '-') return NaN;
+
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+
+  if (lastComma > -1 && lastDot > -1){
+    if (lastComma > lastDot){
+      // "167.247,19" -> coma es el separador decimal, el punto es de miles
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // "167,247.19" -> punto es el separador decimal, la coma es de miles
+      s = s.replace(/,/g, '');
+    }
+  } else if (lastComma > -1){
+    const commaCount = (s.match(/,/g) || []).length;
+    // ",19" al final con 2 decimales o coma única -> se interpreta como decimal (formato latino)
+    s = commaCount > 1 ? s.replace(/,/g, '') : s.replace(',', '.');
+  } else if (lastDot > -1){
+    const dotCount = (s.match(/\./g) || []).length;
+    if (dotCount > 1) s = s.replace(/\./g, ''); // varios puntos -> son separadores de miles
+  }
+
+  return parseFloat(s);
+}
+
+function findKey(rowObj, candidates){
+  const keys = Object.keys(rowObj);
+  for (const cand of candidates){
+    const hit = keys.find(k => normalize(k) === cand);
+    if (hit) return hit;
+  }
+  // fallback: coincidencia parcial
+  for (const cand of candidates){
+    const hit = keys.find(k => normalize(k).includes(cand));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function matchMethodIndex(nameValue, usedIndexes){
+  const n = normalize(nameValue);
+  const patterns = [
+    { id:'oferta', re:/oferta/ },
+    { id:'inferencial', re:/inferenc/ },
+    { id:'contributivo', re:/contribut/ },
+  ];
+  for (const p of patterns){
+    if (p.re.test(n)){
+      const idx = METHODS.findIndex(m => m.id === p.id);
+      if (idx !== -1 && !usedIndexes.has(idx)) return idx;
+    }
+  }
+  return null;
+}
+
+const HEADER_CANDIDATES = ['metodo', 'minimo', 'min', 'medio', 'media', 'moda', 'maximo', 'max', 'peso', 'ponderacion'];
+
+/* Busca, dentro de las primeras filas de la hoja, la fila que funciona como encabezado
+   (contiene al menos dos de las columnas esperadas), sin asumir que sea la fila 1 —
+   así funciona aunque el archivo tenga títulos o filas vacías arriba de la tabla. */
+function extractRowsFromSheet(ws){
+  const matrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false, raw: true });
+  if (!matrix.length) throw new Error('El archivo no contiene datos.');
+
+  let headerIdx = -1;
+  const scanLimit = Math.min(matrix.length, 25);
+  for (let i = 0; i < scanLimit; i++){
+    const cells = matrix[i].map(c => normalize(c));
+    const hits = cells.filter(c => HEADER_CANDIDATES.some(cand => c === cand || c.includes(cand))).length;
+    if (hits >= 2){ headerIdx = i; break; }
+  }
+  if (headerIdx === -1){
+    throw new Error('No se encontró una fila de encabezados con columnas Método / Minimo / Medio / Maximo / Peso.');
+  }
+
+  const headers = matrix[headerIdx];
+  const dataRows = matrix.slice(headerIdx + 1).filter(r => r.some(c => String(c).trim() !== ''));
+  return dataRows.map(r => {
+    const obj = {};
+    headers.forEach((h, i) => { if (String(h).trim() !== '') obj[h] = r[i]; });
+    return obj;
+  });
+}
+
+function applyParsedRows(rows){
+  if (!rows.length) throw new Error('El archivo no contiene filas de datos debajo del encabezado.');
+
+  const sample = rows[0];
+  const kMethod = findKey(sample, ['metodo']);
+  const kMin = findKey(sample, ['minimo', 'min']);
+  const kMed = findKey(sample, ['medio', 'media', 'moda']);
+  const kMax = findKey(sample, ['maximo', 'max']);
+  const kW = findKey(sample, ['peso', 'ponderacion', 'pesos']);
+
+  if (!kMin || !kMed || !kMax){
+    throw new Error('No se encontraron las columnas Minimo / Medio / Maximo. Revisá los encabezados del archivo.');
+  }
+
+  const usedIndexes = new Set();
+  let appliedCount = 0;
+
+  rows.forEach((row) => {
+    const minV = parseLocaleNumber(row[kMin]);
+    const medV = parseLocaleNumber(row[kMed]);
+    const maxV = parseLocaleNumber(row[kMax]);
+    const wV = kW ? parseLocaleNumber(row[kW]) : null;
+    if (Number.isNaN(minV) || Number.isNaN(medV) || Number.isNaN(maxV)) return;
+
+    let idx = kMethod ? matchMethodIndex(row[kMethod], usedIndexes) : null;
+    if (idx === null){
+      // asignar por orden a la primera posición libre
+      idx = METHODS.findIndex((_, mi) => !usedIndexes.has(mi));
+    }
+    if (idx === null || idx === -1) return;
+
+    usedIndexes.add(idx);
+    const m = METHODS[idx];
+    document.getElementById(m.id+'_min').value = minV;
+    document.getElementById(m.id+'_med').value = medV;
+    document.getElementById(m.id+'_max').value = maxV;
+    if (wV !== null && !Number.isNaN(wV)) document.getElementById(m.id+'_w').value = wV;
+    appliedCount++;
+  });
+
+  if (appliedCount === 0) throw new Error('No se pudo asociar ninguna fila del archivo a los métodos esperados.');
+  return appliedCount;
+}
+
+function detectCsvDelimiter(text){
+  const firstLine = text.split(/\r?\n/).find(l => l.trim() !== '') || '';
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semiCount = (firstLine.match(/;/g) || []).length;
+  return semiCount > commaCount ? ';' : ',';
+}
+
+function handleFile(file){
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    try{
+      let ws;
+      if (ext === 'csv'){
+        const text = e.target.result;
+        const delim = detectCsvDelimiter(text);
+        const wb = XLSX.read(text, { type: 'string', FS: delim, raw: true });
+        ws = wb.Sheets[wb.SheetNames[0]];
+      } else {
+        const wb = XLSX.read(e.target.result, { type: 'array', raw: true });
+        ws = wb.Sheets[wb.SheetNames[0]];
+      }
+
+      const rows = extractRowsFromSheet(ws);
+      const n = applyParsedRows(rows);
+      refreshWeightSum();
+      fileStatus.className = 'ok';
+      fileStatus.textContent = `✓ Archivo "${file.name}" cargado — ${n} método(s) actualizados. Revisá los valores abajo antes de ejecutar.`;
+    } catch(err){
+      fileStatus.className = 'bad';
+      fileStatus.textContent = `✗ ${err.message}`;
+    }
+  };
+  reader.onerror = () => {
+    fileStatus.className = 'bad';
+    fileStatus.textContent = '✗ No se pudo leer el archivo.';
+  };
+
+  if (ext === 'csv') reader.readAsText(file, 'UTF-8');
+  else reader.readAsArrayBuffer(file);
+}
+
+// Run once on load with defaults
+runSimulation();
+</script>
 </body>
 </html>
