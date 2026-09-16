@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simulación Montecarlo — Ponderación de métodos de valoración</title>
+<title>Simulación Montecarlo — Ponderación de resultados de métodos de valuación</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -452,14 +452,14 @@
 <div class="wrap">
 
   <header class="masthead">
-    <div class="kicker">SIMULACIÓN MONTECARLO · PONDERACIÓN DE MÉTODOS DE VALORACIÓN</div>
-    <h1>Estimación del valor ponderado mediante Montecarlo</h1>
-    <p class="subtitle">Combina los resultados de los enfoques Análisis de oferta, Inferencial y Contributivo (Bs/m²), aplicando una ponderación porcentual que suma 100&nbsp;%, y propaga la incertidumbre de cada método a través de una distribución triangular (mínimo, valor medio, máximo).</p>
+    <div class="kicker">SIMULACIÓN MONTECARLO · PONDERACIÓN DE RESULTADOS DE MÉTODOS DE VALUACIÓN</div>
+    <h1>Estimación del valor ponderado mediante Simulación de Montecarlo</h1>
+    <p class="subtitle">Combina los resultados de los enfoques de mercado (Análisis de oferta-Descriptivo e Inferencial) y el Método Contributivo, aplicando una ponderación porcentual que suma 100&nbsp;%, y propaga la incertidumbre de cada enfoque a través de una distribución triangular Valores(mínimo,medio, máximo).</p>
   </header>
 
   <section id="inputs-section">
-    <h2><span class="num">01</span> Datos base y ponderación</h2>
-    <p class="section-note">Los valores mínimo / medio / máximo provienen de la Tabla 86. El método Machine Learning se excluye (NA). Ajustá los pesos porcentuales — deben sumar 100&nbsp;%.</p>
+    <h2><span class="num">01</span> Base de datos - ponderación</h2>
+    <p class="section-note">Los valores mínimo / medio / máximo se ajustan por los pesos porcentuales — deben sumar 100&nbsp;%.</p>
 
     <div class="mode-tabs" role="tablist">
       <button class="mode-tab active" id="tabManual" type="button">Carga manual</button>
@@ -470,7 +470,7 @@
       <div class="fp-head">
         <div>
           <p class="fp-title">Importar datos desde un archivo</p>
-          <p class="fp-desc">El archivo debe tener columnas: <strong>Método, Minimo, Medio, Maximo, Peso</strong>. Se reconoce el método por nombre (oferta, inferencial, contributivo); si no coincide, se asigna por orden de fila.</p>
+          <p class="fp-desc">El archivo debe tener columnas: <strong>Método, Minimo, Medio, Maximo, Peso</strong>. Se reconocen los resultados por nombre (Descriptivo, inferencial, contributivo); si no coincide, se asigna por orden de fila.</p>
         </div>
         <div class="template-links">
           <a href="#" id="downloadTemplateCsv">↓ Plantilla .csv</a>
@@ -479,7 +479,7 @@
       </div>
 
       <div class="dropzone" id="dropzone">
-        <div class="dz-main">Arrastrá tu archivo acá, o hacé clic para elegirlo</div>
+        <div class="dz-main">Arrastra el archivo acá, o haga clic para elegirlo</div>
         <div class="dz-sub">FORMATOS ACEPTADOS: .XLSX · .XLS · .CSV</div>
         <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
       </div>
@@ -491,9 +491,9 @@
     <div class="methods" id="methodsGrid">
       <div class="method-row head">
         <div>Método</div>
-        <div>Mínimo (Bs/m²)</div>
-        <div>Medio (Bs/m²)</div>
-        <div>Máximo (Bs/m²)</div>
+        <div>Mínimo (UM/m²)</div>
+        <div>Medio (UM/m²)</div>
+        <div>Máximo (UM/m²)</div>
         <div>Peso (%)</div>
       </div>
       <!-- rows injected by JS -->
@@ -548,14 +548,14 @@
 
     <div class="chart-panel">
       <h3>Histograma de frecuencias</h3>
-      <div class="chart-sub">Valor ponderado simulado (Bs/m²) — la banda sombreada marca el intervalo de confianza</div>
+      <div class="chart-sub">Valor ponderado simulado (UM/m²) — la banda sombreada marca el intervalo de confianza</div>
       <div id="histCanvasWrap"><canvas id="histChart"></canvas></div>
     </div>
 
     <table class="detail-table">
       <caption>Percentiles de la distribución simulada</caption>
       <thead>
-        <tr><th>Percentil</th><th class="num">Valor (Bs/m²)</th><th>Percentil</th><th class="num">Valor (Bs/m²)</th></tr>
+        <tr><th>Percentil</th><th class="num">Valor (UM/m²)</th><th>Percentil</th><th class="num">Valor (UM/m²)</th></tr>
       </thead>
       <tbody id="percentileBody"></tbody>
     </table>
@@ -569,8 +569,8 @@
 
 <script>
 const METHODS = [
-  { id:'oferta', name:'Análisis de oferta', tag:'Comparativo de mercado', min:167247.19, med:188278.41, max:209309.33, weight:10 },
-  { id:'inferencial', name:'Inferencial', tag:'Estadístico', min:196925.54, med:249454.18, max:315912.97, weight:10 },
+  { id:'descriptivo', name:'Análisis Descriptivo', tag:'Comparativo de mercado', min:167247.19, med:188278.41, max:209309.33, weight:10 },
+  { id:'inferencial', name:'Análisis Inferencial', tag:'Comparativo de mercado', min:196925.54, med:249454.18, max:315912.97, weight:10 },
   { id:'contributivo', name:'Contributivo', tag:'Costo de reposición', min:1344062.88, med:1479845.22, max:1612316.33, weight:80 },
 ];
 
